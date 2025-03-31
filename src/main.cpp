@@ -3,28 +3,30 @@
 #include "hsl.h"
 
 #define LED_BUILTIN 23
-#define LED_PIN 24
-// one singlular LED btw
+#define LED_PIN 26
+
+#define NUM_LEDS 144
+
 #define BUTTON_PIN 25
 #define DEBOUNCE_DELAY 10
 
-CRGB leds[1];
+CRGB leds[NUM_LEDS];
+
+int brightness = 200;
 
 void setup()
 {
   Serial.begin(9600);
 
-  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, 1);
-  FastLED.setBrightness(255);
+  FastLED.addLeds<WS2812, LED_PIN, GRB>(leds, NUM_LEDS);
+  FastLED.setBrightness(brightness);
 
   pinMode(LED_BUILTIN, OUTPUT);
   pinMode(BUTTON_PIN, INPUT_PULLUP);
 }
 
-int hue = 0;
-int velocity = 2;
-
-int brightness = 255;
+float hue = 0;
+float velocity = 360 / NUM_LEDS;
 
 enum LedState
 {
@@ -73,41 +75,51 @@ void getButtonState()
   }
 }
 
-void loop()
+void rainbowLeds()
 {
-  getButtonState();
+  hue += velocity;
 
-  hue = (hue + velocity) % 360;
+  if (hue >= 360)
+  {
+    hue = 0;
+  }
 
+  Serial.print("Hue: ");
+  Serial.println(hue);
+}
+
+int currentLed = 0;
+
+void cycleLeds()
+{
   float h = hue / 360.0;
 
   TobyRGB rgb = hsl2rgb(h, 1, 0.5);
 
-  Serial.print("Hue: ");
-  Serial.println(hue);
+  leds[currentLed - 7] = CRGB::Black;
 
-  leds[0] = CRGB(rgb.r, rgb.g, rgb.b);
-  if (ledState == Off || ledState == GreenOn)
+  if (currentLed - 7 < 0)
   {
-    leds[0] = CRGB(0, 0, 0);
+    leds[NUM_LEDS + currentLed - 7] = CRGB::Black;
   }
+
+  leds[currentLed] = CRGB(rgb.r, rgb.g, rgb.b);
+
+  currentLed = (currentLed + 1) % NUM_LEDS;
+
+  Serial.print("CurrentLed: ");
+  Serial.println(currentLed);
 
   FastLED.show();
+}
 
-  brightness = brightness - 1;
-  if (brightness < 0)
-  {
-    brightness = 255;
-  }
+void loop()
+{
+  // getButtonState();
 
-  if (ledState == Off || ledState == RGBOn)
-  {
-    analogWrite(LED_BUILTIN, 0);
-  }
-  else
-  {
-    analogWrite(LED_BUILTIN, brightness);
-  }
+  rainbowLeds();
 
-  delay(10);
+  cycleLeds();
+
+  delay(20);
 }
